@@ -2,6 +2,7 @@ package goevent
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 
@@ -13,9 +14,10 @@ var (
 )
 
 // New : New event emitter to be used locally
-func New() *Emitter {
+func New(handlePanic bool) *Emitter {
 	return &Emitter{
-		listeners: make(map[string]map[string]Handler),
+		listeners:    make(map[string]map[string]Handler),
+		handlePanics: handlePanic,
 	}
 }
 
@@ -26,8 +28,8 @@ func Global() *Emitter {
 
 // InitGlobal : initialize the global event emitter
 // put this in your main function
-func InitGlobal() {
-	globEmitter = New()
+func InitGlobal(handlePanic bool) {
+	globEmitter = New(handlePanic)
 }
 
 const hashSplit = "::"
@@ -37,8 +39,9 @@ type Handler = func(d interface{})
 
 // Emitter : event emitter
 type Emitter struct {
-	mu        sync.RWMutex
-	listeners map[string]map[string]Handler
+	mu           sync.RWMutex
+	listeners    map[string]map[string]Handler
+	handlePanics bool
 }
 
 // Emit : emit an event to the system
@@ -53,10 +56,17 @@ func (e *Emitter) Emit(name string, data interface{}) {
 			continue
 		}
 		wg.Add(1)
-		go func(data interface{}, fn Handler) {
+		go func(data interface{}, fn Handler, handlePanics bool) {
 			defer wg.Done()
+			defer func(handlepanics bool) {
+				if handlepanics {
+					if err := recover(); err != nil {
+						log.Println(": govevent : panic occurred :", err)
+					}
+				}
+			}(handlePanics)
 			fn(data)
-		}(data, fn)
+		}(data, fn, e.handlePanics)
 	}
 	wg.Wait()
 }

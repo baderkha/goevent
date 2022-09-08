@@ -39,7 +39,9 @@ For Global Events you first need to init the global emitter as such
     // somewhere in your main func
     func main() {
         // IF YOU DO NOT DO THIS , THIS WILL CRASH
-        handlePanics := true // choose to have your panics handled gracefully , if you plan on having risky event listeners
+
+        // choose to have your panics handled gracefully
+        handlePanics := true 
         goevent.InitGlobal(handlePanics)
     }
     ```
